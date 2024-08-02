@@ -31,3 +31,5 @@ __all__ = [
     "pretokenize_runner",
     "run_evals",
 ]
+
+print("[julia] using local editable version of sae-lens")

@@ -15,6 +15,7 @@ from jaxtyping import Float
 from safetensors.torch import save_file
 from torch import nn
 from transformer_lens.hook_points import HookedRootModule, HookPoint
+import re
 
 from sae_lens.config import DTYPE_MAP
 from sae_lens.toolkit.pretrained_sae_loaders import (
@@ -690,7 +691,12 @@ class SAE(HookedRootModule):
         return sae, cfg_dict, log_sparsities
 
     def get_name(self):
-        sae_name = f"sae_{self.cfg.model_name}_{self.cfg.hook_name}_{self.cfg.d_sae}"
+        # [julia] remove unwanted characters from model name when creating the SAE name to avoid errors with WandB
+        model_name = self.cfg.model_name
+        model_name = model_name.split("/")[-1]
+        model_name = re.sub(r"[^a-zA-Z0-9-_.]", "")
+
+        sae_name = f"sae_{model_name}_{self.cfg.hook_name}_{self.cfg.d_sae}"
         return sae_name
 
     @classmethod

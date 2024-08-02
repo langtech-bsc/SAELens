@@ -151,12 +151,15 @@ class ActivationsStore:
         if model_kwargs is None:
             model_kwargs = {}
         self.model_kwargs = model_kwargs
+
+        print("[julia] Loading dataset...")
         self.dataset = (
             load_dataset(
                 dataset,
                 split="train",
                 streaming=streaming,
                 trust_remote_code=dataset_trust_remote_code,  # type: ignore
+                cache_dir=os.environ["HF_HOME"],
             )
             if isinstance(dataset, str)
             else dataset
@@ -439,6 +442,8 @@ class ActivationsStore:
         n_batches, n_context = batch_tokens.shape
 
         stacked_activations = torch.zeros((n_batches, n_context, 1, self.d_in))
+
+        print("[julia] layerwise_activations.keys():", layerwise_activations.keys())
 
         if self.hook_head_index is not None:
             stacked_activations[:, :, 0] = layerwise_activations[self.hook_name][
