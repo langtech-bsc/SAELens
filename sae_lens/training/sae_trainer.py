@@ -172,7 +172,13 @@ class SAETrainer:
         return (self.n_forward_passes_since_fired > self.cfg.dead_feature_window).bool()
 
     def fit(self) -> TrainingSAE:
-        pbar = tqdm(total=self.cfg.total_training_tokens, desc="Training SAE")
+        pbar = tqdm(
+            total=self.cfg.total_training_tokens,
+            desc="Training SAE",
+            unit="token",
+            unit_scale=True,
+            unit_divisor=1_000,
+        )
 
         self.activations_store.set_norm_scaling_factor_if_needed()
 
