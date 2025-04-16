@@ -92,12 +92,14 @@ class SAETrainingRunner:
         """
 
         if self.cfg.log_to_wandb:
+            wandb.require("core")
             wandb.init(
                 project=self.cfg.wandb_project,
                 entity=self.cfg.wandb_entity,
                 config=cast(Any, self.cfg),
                 name=self.cfg.run_name,
                 id=self.cfg.wandb_id,
+                mode="offline"
             )
 
         trainer = SAETrainer(
@@ -207,31 +209,6 @@ class SAETrainingRunner:
         config = trainer.cfg.to_dict()
         with open(cfg_path, "w") as f:
             json.dump(config, f)
-
-        if trainer.cfg.log_to_wandb:
-            # Avoid wandb saving errors such as:
-            #   ValueError: Artifact name may only contain alphanumeric characters, dashes, underscores, and dots. Invalid name: sae_google/gemma-2b_etc
-            sae_name = trainer.sae.get_name().replace("/", "__")
-
-            # save model weights and cfg
-            model_artifact = wandb.Artifact(
-                sae_name,
-                type="model",
-                metadata=dict(trainer.cfg.__dict__),
-            )
-            model_artifact.add_file(str(weights_path))
-            model_artifact.add_file(str(cfg_path))
-            wandb.log_artifact(model_artifact, aliases=wandb_aliases)
-
-            # save log feature sparsity
-            sparsity_artifact = wandb.Artifact(
-                f"{sae_name}_log_feature_sparsity",
-                type="log_feature_sparsity",
-                metadata=dict(trainer.cfg.__dict__),
-            )
-            sparsity_artifact.add_file(str(sparsity_path))
-            wandb.log_artifact(sparsity_artifact)
-
 
 def _parse_cfg_args(args: Sequence[str]) -> LanguageModelSAERunnerConfig:
     if len(args) == 0:
