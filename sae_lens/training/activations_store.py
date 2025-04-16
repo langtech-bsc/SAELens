@@ -6,11 +6,12 @@ import os
 import warnings
 from collections.abc import Generator, Iterator, Sequence
 from typing import Any, Literal, cast
+from pathlib import Path
 
 import datasets
 import numpy as np
 import torch
-from datasets import Dataset, DatasetDict, IterableDataset, load_dataset
+from datasets import Dataset, DatasetDict, IterableDataset, load_from_disk
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import HfHubHTTPError
 from jaxtyping import Float, Int
@@ -43,7 +44,6 @@ class ActivationsStore:
     dataset: HfDataset
     cached_activations_path: str | None
     cached_activation_dataset: Dataset | None = None
-    tokens_column: Literal["tokens", "input_ids", "text", "problem"]
     hook_name: str
     hook_layer: int
     hook_head_index: int | None
@@ -210,12 +210,7 @@ class ActivationsStore:
             model_kwargs = {}
         self.model_kwargs = model_kwargs
         self.dataset = (
-            load_dataset(
-                dataset,
-                split="train",
-                streaming=streaming,
-                trust_remote_code=dataset_trust_remote_code,  # type: ignore
-            )
+            load_from_disk(dataset)
             if isinstance(dataset, str)
             else dataset
         )
@@ -252,25 +247,14 @@ class ActivationsStore:
 
         self.estimated_norm_scaling_factor = None
 
-        # Check if dataset is tokenized
-        dataset_sample = next(iter(self.dataset))
-
         # check if it's tokenized
-        if "tokens" in dataset_sample:
-            self.is_dataset_tokenized = True
-            self.tokens_column = "tokens"
-        elif "input_ids" in dataset_sample:
+        dataset_sample = next(iter(self.dataset))
+        if "input_ids" in dataset_sample:
             self.is_dataset_tokenized = True
             self.tokens_column = "input_ids"
-        elif "text" in dataset_sample:
-            self.is_dataset_tokenized = False
-            self.tokens_column = "text"
-        elif "problem" in dataset_sample:
-            self.is_dataset_tokenized = False
-            self.tokens_column = "problem"
         else:
             raise ValueError(
-                "Dataset must have a 'tokens', 'input_ids', 'text', or 'problem' column."
+                "Dataset must have an 'input_ids' column."
             )
         if self.is_dataset_tokenized:
             ds_context_size = len(dataset_sample[self.tokens_column])
@@ -812,14 +796,7 @@ def validate_pretokenized_dataset_tokenizer(
     """
     Helper to validate that the tokenizer used to pretokenize the dataset matches the model tokenizer.
     """
-    try:
-        tokenization_cfg_path = hf_hub_download(
-            dataset_path, "sae_lens.json", repo_type="dataset"
-        )
-    except HfHubHTTPError:
-        return
-    if tokenization_cfg_path is None:
-        return
+    tokenization_cfg_path = Path(dataset_path) / "sae_lens.json"
     with open(tokenization_cfg_path) as f:
         tokenization_cfg = json.load(f)
     tokenizer_name = tokenization_cfg["tokenizer_name"]
