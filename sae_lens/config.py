@@ -6,7 +6,7 @@ from typing import Any, Literal, cast
 
 import simple_parsing
 import torch
-import wandb
+import randomname
 from datasets import (
     Dataset,
     DatasetDict,
@@ -311,7 +311,9 @@ class LanguageModelSAERunnerConfig:
         )
 
         if self.run_name is None:
-            self.run_name = f"{self.d_sae}-L1-{self.l1_coefficient}-LR-{self.lr}-Tokens-{self.training_tokens:3.3e}"
+            self.run_name = randomname.get_name()
+
+        self.wandb_id = self.run_name
 
         if self.model_from_pretrained_kwargs is None:
             if self.model_class_name == "HookedTransformer":
@@ -356,12 +358,7 @@ class LanguageModelSAERunnerConfig:
         if self.lr_end is None:
             self.lr_end = self.lr / 10
 
-        unique_id = self.wandb_id
-        if unique_id is None:
-            unique_id = cast(
-                Any, wandb
-            ).util.generate_id()  # not sure why this type is erroring
-        self.checkpoint_path = f"{self.checkpoint_path}/{unique_id}"
+        self.checkpoint_path = f"{self.checkpoint_path}/{self.run_name}"
 
         if self.verbose:
             logger.info(
