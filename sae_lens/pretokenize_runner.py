@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Iterator, Literal, cast
 
 import torch
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, load_from_disk
 from huggingface_hub import HfApi
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from typing_extensions import deprecated
@@ -121,13 +121,13 @@ def pretokenize_dataset(
             remove_columns=dataset.column_names,
         )
 
+    # save also the actual tokens in a list for future needs
+    tokenized_dataset = tokenized_dataset.map(lambda row: {"tokens": tokenizer.convert_ids_to_tokens(row["input_ids"])})
+
     if cfg.shuffle:
         tokenized_dataset = tokenized_dataset.shuffle(seed=cfg.seed)
 
-    if cfg.streaming:
-        tokenized_dataset = tokenized_dataset.with_format(type="torch")
-    else:
-        tokenized_dataset.set_format(type="torch", columns=["input_ids"])
+    tokenized_dataset.set_format(type="torch", columns=["input_ids", "tokens"])
 
     return tokenized_dataset
 
@@ -182,14 +182,9 @@ class PretokenizeRunner:
         """
         Load the dataset, tokenize it, and save it to disk and/or upload to Huggingface.
         """
-        dataset = load_dataset(
-            self.cfg.dataset_path,
-            name=self.cfg.dataset_name,
-            data_dir=self.cfg.data_dir,
-            data_files=self.cfg.data_files,
-            split=self.cfg.split,
-            streaming=self.cfg.streaming,
-        )
+
+        dataset = load_from_disk(self.cfg.dataset_path)
+
         if isinstance(dataset, DatasetDict):
             raise ValueError(
                 "Dataset has multiple splits. Must provide a 'split' param."
@@ -203,9 +198,14 @@ class PretokenizeRunner:
         if self.cfg.save_path is not None:
             tokenized_dataset.save_to_disk(self.cfg.save_path)
             metadata = metadata_from_config(self.cfg)
+
+            # Save number of rows to avoid having to load the dataset to get the row count
+            metadata_dict = metadata.__dict__
+            metadata_dict["num_rows"] = tokenized_dataset["num_rows"]
+
             metadata_path = Path(self.cfg.save_path) / "sae_lens.json"
             with open(metadata_path, "w") as f:
-                json.dump(metadata.__dict__, f, indent=2, ensure_ascii=False)
+                json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
 
         if self.cfg.hf_repo_id is not None:
             push_to_hugging_face_hub(tokenized_dataset, self.cfg)
