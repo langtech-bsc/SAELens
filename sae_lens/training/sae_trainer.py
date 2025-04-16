@@ -213,7 +213,7 @@ class SAETrainer:
         # save final sae group to checkpoints folder
         self.save_checkpoint(
             trainer=self,
-            checkpoint_name=f"final_{self.n_training_tokens}",
+            checkpoint_name=f"final",
             wandb_aliases=["final_model"],
         )
 
