@@ -266,6 +266,7 @@ class LanguageModelSAERunnerConfig:
     sae_lens_version: str = field(default_factory=lambda: __version__)
     sae_lens_training_version: str = field(default_factory=lambda: __version__)
     exclude_special_tokens: bool | list[int] = False
+    wandb_extras: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.resume:
@@ -504,6 +505,15 @@ class LanguageModelSAERunnerConfig:
                 cfg["seqpos_slice"] = (cfg["seqpos_slice"],)
 
         return cls(**cfg)
+
+    def adjust_cfg_dict_for_wandb(self) -> dict:
+        cfg_dict = self.__dict__.copy()
+
+        # expand wandb_extras into main dict and remove it
+        cfg_dict.update(cfg_dict["wandb_extras"])
+        del cfg_dict["wandb_extras"]
+
+        return cfg_dict
 
 
 @dataclass
