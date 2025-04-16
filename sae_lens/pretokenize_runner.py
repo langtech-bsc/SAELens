@@ -201,7 +201,7 @@ class PretokenizeRunner:
 
             # Save number of rows to avoid having to load the dataset to get the row count
             metadata_dict = metadata.__dict__
-            metadata_dict["num_rows"] = tokenized_dataset["num_rows"]
+            metadata_dict["num_rows"] = tokenized_dataset.num_rows
 
             metadata_path = Path(self.cfg.save_path) / "sae_lens.json"
             with open(metadata_path, "w") as f:
